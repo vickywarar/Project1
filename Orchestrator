@@ -1,0 +1,48 @@
+flowchart LR
+
+    Client[Client / API Consumer]
+
+    subgraph Orchestrator Service
+        Auth[Auth Layer\n(JWT / Basic)]
+        Middleware[Middleware\n(Correlation ID, Audit, Rate Limit, Size Limit)]
+        Router[Job Router]
+        JobStore[Job Status Store\n(JSON + TTL)]
+        KafkaPub[Kafka Publisher]
+        Metrics[Metrics + Logging]
+    end
+
+    subgraph ETL Services
+        API_DB[API → DB]
+        DB_FILE[DB → File]
+        DB_DB[DB → DB]
+        FILE_FILE[File → File]
+        FILE_DB[File → DB]
+        FILE_TRANSFER[File Transfer]
+        DB_API[DB → API]
+    end
+
+    Kafka[(Kafka\netl-events)]
+
+    Client --> Auth
+    Auth --> Middleware
+    Middleware --> Router
+
+    Router --> API_DB
+    Router --> DB_FILE
+    Router --> DB_DB
+    Router --> FILE_FILE
+    Router --> FILE_DB
+    Router --> FILE_TRANSFER
+    Router --> DB_API
+
+    Router --> JobStore
+    Router --> KafkaPub
+    KafkaPub --> Kafka
+
+    Middleware --> Metrics
+    Router --> Metrics
+
+    %% Correlation ID flow
+    Middleware -.->|X-Correlation-ID| Router
+    Router -.->|Propagated| API_DB
+    Router -.->|Propagated| DB_FILE
